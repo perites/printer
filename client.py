@@ -24,6 +24,9 @@ class ClientMessagesContoller():
         self.commads = ["help", "omembers", "chat", "exit (while in chat)"]
         self.chat = False
 
+        fetch_messages_thread = threading.Thread(target=self.fetch_messages)
+        fetch_messages_thread.start()
+
     def terminal(self):
         while not self.chat:
             user_input = input("command: ")
@@ -44,9 +47,7 @@ class ClientMessagesContoller():
 
     def start_chatting(self):
         get_user_message_thread = threading.Thread(target=self.get_user_message)
-        fetch_messages_thread = threading.Thread(target=self.fetch_messages)
         get_user_message_thread.start()
-        fetch_messages_thread.start()
 
     def get_user_message(self):
         message_to = input("chat with: ")
@@ -62,7 +63,7 @@ class ClientMessagesContoller():
 
     def fetch_messages(self):
         headers = {"message-to": self.user_name}
-        while self.chat:
+        while True:
             message = requests.get(URL, headers=headers)
             if (message := message.json()):
                 self.show_message(message)
@@ -90,7 +91,8 @@ class ClientMessagesContoller():
     def validate_name(self):
         while True:
             name = input("your name: ")
-
+            print(name)
+            print(self.get_online_members())
             if " " in name or "ㅤ" in name or name == "":
                 print("name cant be empty")
             elif name in self.get_online_members():
