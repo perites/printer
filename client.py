@@ -17,8 +17,8 @@ class ClientMessagesContoller():
 
     def send_message(self):
         while True:
-            message_to = input("message to :")
-            message = input("message : ")
+            message_to = input("message to: ")
+            message = input("message: ")
             message = {"time": time.ctime(), "message_from": self.client_name, "message": message, "message_to": message_to}
             requests.post(URL, json=message)
 
