@@ -3,13 +3,13 @@ import requests
 import time
 
 URL = "https://chat-test-k49y.onrender.com"
-URL = "http://127.0.0.1:5000/"
+# URL = "http://127.0.0.1:5000/"
 
 
 class ClientMessagesContoller():
     def __init__(self, name):
         self.client_name = name
-        self.commads = ["help", "omembers", "chat"]
+        self.commads = ["help", "omembers", "chat", "exit (while in chat)"]
         self.chat = False
 
     def show_message(self, message):
@@ -19,7 +19,7 @@ class ClientMessagesContoller():
                 return
 
             print(f'\n{message["message_from"]} to {message["message_to"]}:{message["message"]} at {message["time"]}')
-            message = {"time": time.ctime(), "message_from": self.client_name, "message": f"have read your message:  {message['message']}", "message_to": message['message_from'], "system": True}
+            message = {"time": time.ctime(), "message_from": self.client_name, "message": f" have read your message:  {message['message']}", "message_to": message['message_from'], "system": True}
             requests.post(URL, json=message)
         else:
             print("\n" + message)
@@ -28,15 +28,13 @@ class ClientMessagesContoller():
         message_to = input("chat with:")
         while self.chat:
             message = input("message:")
-            match message:
-                case "exit":
-                    self.chat = False
-                    return
-                case "":
-                    print("message cant be empty")
-                case _:
-                    message = {"time": time.ctime(), "message_from": self.client_name, "message": message, "message_to": message_to, "system": False}
-                    requests.post(URL, json=message)
+            if message == "exit":
+                self.chat = False
+            elif message == "" or "ㅤ" in message:
+                print("message cant be empty")
+            else:
+                message = {"time": time.ctime(), "message_from": self.client_name, "message": message, "message_to": message_to, "system": False}
+                requests.post(URL, json=message)
 
     def fetch_messages(self):
         headers = {"message-to": self.client_name}
@@ -71,6 +69,21 @@ class ClientMessagesContoller():
                     print("wrong command")
 
 
-mc = ClientMessagesContoller(input("your name:"))
+def validate_name():
+    while True:
+        name = input("your name:")
+
+        if " " in name or "ㅤ" in name or name == "":
+            print("name cant be empty")
+
+        else:
+            answer = requests.get(URL + "/omembers").json()
+            if name in answer:
+                print("name already taken")
+            else:
+                return name
+
+
+mc = ClientMessagesContoller(validate_name())
 while True:
     mc.terminal()
