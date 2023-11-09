@@ -1,64 +1,38 @@
 import threading
 import requests
 import time
-
+from dataclasses import dataclass, asdict
 URL = "https://chat-test-k49y.onrender.com"
 # URL = "http://127.0.0.1:5000/"
 
 
+@dataclass
+class Message():
+    message: str
+    message_from: str
+    message_to: str
+    system_message: bool = False
+    time: str = time.ctime()
+
+    def __str__(self):
+        return f"\n{self.message_from} to {self.message_to}: {self.message} at {self.time}"
+
+
 class ClientMessagesContoller():
-    def __init__(self, name):
-        self.client_name = name
+    def __init__(self):
+        self.user_name = self.validate_name()
         self.commads = ["help", "omembers", "chat", "exit (while in chat)"]
         self.chat = False
 
-    def show_message(self, message):
-        if isinstance(message, dict):
-            if message["system"]:
-                print(f'\n{message["message_from"]} to {message["message_to"]}:{message["message"]} at {message["time"]}')
-                return
-
-            print(f'\n{message["message_from"]} to {message["message_to"]}:{message["message"]} at {message["time"]}')
-            message = {"time": time.ctime(), "message_from": self.client_name, "message": f" have read your message:  {message['message']}", "message_to": message['message_from'], "system": True}
-            requests.post(URL, json=message)
-        else:
-            print("\n" + message)
-
-    def send_message(self):
-        message_to = input("chat with:")
-        while self.chat:
-            message = input("message:")
-            if message == "exit":
-                self.chat = False
-            elif message == "" or "ㅤ" in message:
-                print("message cant be empty")
-            else:
-                message = {"time": time.ctime(), "message_from": self.client_name, "message": message, "message_to": message_to, "system": False}
-                requests.post(URL, json=message)
-
-    def fetch_messages(self):
-        headers = {"message-to": self.client_name}
-        while self.chat:
-            message = requests.get(URL, headers=headers)
-            if (message := message.json()):
-                self.show_message(message)
-            time.sleep(1)
-
-    def start_chatting(self):
-        send_message_thread = threading.Thread(target=self.send_message)
-        fetch_messages_thread = threading.Thread(target=self.fetch_messages)
-        send_message_thread.start()
-        fetch_messages_thread.start()
-
     def terminal(self):
         while not self.chat:
-            user_input = input("command:")
+            user_input = input("command: ")
             match user_input:
                 case "help":
                     print(self.commads)
 
                 case "omembers":
-                    answer = requests.get(URL + "/omembers").json()
+                    answer = self.get_online_members()
                     print(f"Currently online {len(answer)} members:\n{answer}")
 
                 case "chat":
@@ -68,22 +42,63 @@ class ClientMessagesContoller():
                 case _:
                     print("wrong command")
 
+    def start_chatting(self):
+        get_user_message_thread = threading.Thread(target=self.get_user_message)
+        fetch_messages_thread = threading.Thread(target=self.fetch_messages)
+        get_user_message_thread.start()
+        fetch_messages_thread.start()
 
-def validate_name():
-    while True:
-        name = input("your name:")
+    def get_user_message(self):
+        message_to = input("chat with: ")
+        while self.chat:
+            message = input("message: ")
+            if message == "exit":
+                self.chat = False
+            elif message == "" or "ㅤ" in message:
+                print("message cant be empty")
+            else:
+                message = asdict(Message(message_from=self.user_name, message_to=message_to, message=message))
+                self.send_message(message)
 
-        if " " in name or "ㅤ" in name or name == "":
-            print("name cant be empty")
+    def fetch_messages(self):
+        headers = {"message-to": self.user_name}
+        while self.chat:
+            message = requests.get(URL, headers=headers)
+            if (message := message.json()):
+                self.show_message(message)
+            time.sleep(1)
 
-        else:
-            answer = requests.get(URL + "/omembers").json()
-            if name in answer:
+    def show_message(self, message):
+        if not isinstance(message, dict):
+            print("\n" + message)
+            return
+
+        message = Message(**message)
+        print(message)
+
+        if message.system_message:
+            return
+        message = asdict(Message(message_from=self.user_name, message_to=message.message_from, message=f"message seen: '{message.message}'", system_message=True))
+        self.send_message(message)
+
+    def send_message(self, message):
+        requests.post(URL, json=message)
+
+    def get_online_members(self):
+        return requests.get(URL + "/omembers").json()
+
+    def validate_name(self):
+        while True:
+            name = input("your name: ")
+
+            if " " in name or "ㅤ" in name or name == "":
+                print("name cant be empty")
+            elif name in self.get_online_members():
                 print("name already taken")
             else:
                 return name
 
 
-mc = ClientMessagesContoller(validate_name())
+mc = ClientMessagesContoller()
 while True:
     mc.terminal()
